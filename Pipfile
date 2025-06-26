@@ -4,8 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask-bcrypt = "*"
 flask-restful = "*"
+flask-bcrypt = "*"
 
 [dev-packages]
 
