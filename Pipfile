@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 flask-restful = "*"
 flask-bcrypt = "*"
+flask-cors = "*"
 
 [dev-packages]
 
