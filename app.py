@@ -10,21 +10,25 @@ import os
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, 
+CORS(app,
      origins=[
-         
+         "http://localhost:3000",
          "https://frontend-testfinal.onrender.com"
      ],
      supports_credentials=True)
 
+# Configs
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'super-secret-key'
 app.secret_key = 'shhh-very-secret'
 
+# Init
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+
+# ----------- AUTH ROUTES -----------
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -51,6 +55,8 @@ def login():
         return jsonify(user=user.to_dict(rules=('-_password_hash',)), access_token=token), 200
     return jsonify(error="Invalid credentials."), 401
 
+# ----------- USER PROFILE -----------
+
 @app.route('/me', methods=['GET'])
 @jwt_required()
 def me():
@@ -58,12 +64,37 @@ def me():
     user = User.query.get(current_user_id)
     return jsonify(user.to_dict(rules=('-_password_hash',))), 200
 
+@app.route('/me', methods=['PUT'])
+@jwt_required()
+def update_me():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify(error="User not found"), 404
+
+    data = request.get_json()
+    if 'username' in data:
+        user.username = data['username']
+    if 'email' in data:
+        user.email = data['email']
+
+    try:
+        db.session.commit()
+        return jsonify(user=user.to_dict(rules=('-_password_hash',))), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(error="Username or email already exists."), 409
+
+# ----------- RECIPE ROUTES -----------
+
 @app.route('/recipes', methods=['GET'])
+@jwt_required()
 def get_all_recipes():
     recipes = Recipe.query.all()
     return jsonify([r.to_dict() for r in recipes]), 200
 
 @app.route('/recipes/<int:id>', methods=['GET'])
+@jwt_required()
 def get_recipe(id):
     recipe = Recipe.query.get(id)
     if recipe:
@@ -102,7 +133,7 @@ def update_recipe(id):
     for key in ['title', 'description', 'ingredients', 'instructions', 'category']:
         if key in data:
             setattr(recipe, key, data[key])
-    
+
     db.session.commit()
     return jsonify(recipe.to_dict()), 200
 
@@ -120,6 +151,8 @@ def delete_recipe(id):
     db.session.delete(recipe)
     db.session.commit()
     return jsonify(message="Recipe deleted"), 200
+
+# ----------- ENTRY POINT -----------
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
