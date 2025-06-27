@@ -6,17 +6,16 @@ from flask_jwt_extended import (
 from sqlalchemy.exc import IntegrityError
 from config import db
 from models import User, Recipe
-import os
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from datetime import timedelta
+import os
 
 app = Flask(__name__)
-CORS(app,
-     origins=[
-         "http://localhost:3000",
-         "https://frontend-testfinal.onrender.com"
-     ],
-     supports_credentials=True)
+
+CORS(app, supports_credentials=True, origins=[
+    "http://localhost:3000",
+    "https://frontend-testfinal.onrender.com"
+])
 
 # Configs
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
@@ -32,6 +31,7 @@ jwt = JWTManager(app)
 
 # ================= AUTH ROUTES =================
 @app.route('/login', methods=['POST'])
+@cross_origin()
 def login():
     data = request.get_json()
     if not data or 'email' not in data or 'password' not in data:
@@ -47,6 +47,7 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 @app.route('/register', methods=['POST'])
+@cross_origin()
 def register():
     data = request.get_json()
     if not data or 'username' not in data or 'email' not in data or 'password' not in data:
@@ -71,6 +72,7 @@ def register():
 # ================= PROFILE ROUTES =================
 @app.route('/me', methods=['GET'])
 @jwt_required()
+@cross_origin()
 def get_profile():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
@@ -80,6 +82,7 @@ def get_profile():
 
 @app.route('/me', methods=['PUT'])
 @jwt_required()
+@cross_origin()
 def update_profile():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
@@ -105,6 +108,7 @@ def update_profile():
 # ================= RECIPE ROUTES =================
 @app.route('/recipes', methods=['GET'])
 @jwt_required()
+@cross_origin()
 def get_all_recipes():
     user_id = get_jwt_identity()
     recipes = Recipe.query.filter_by(user_id=user_id).all()
@@ -112,10 +116,11 @@ def get_all_recipes():
 
 @app.route('/recipes', methods=['POST'])
 @jwt_required()
+@cross_origin()
 def create_recipe():
     user_id = get_jwt_identity()
     data = request.get_json()
-    
+
     if not data or 'title' not in data or 'ingredients' not in data or 'instructions' not in data:
         return jsonify({"message": "Missing required fields"}), 400
 
@@ -127,25 +132,36 @@ def create_recipe():
         category=data.get('category', ''),
         user_id=user_id
     )
-    
+
     db.session.add(recipe)
     db.session.commit()
     return jsonify(recipe.to_dict()), 201
 
 @app.route('/recipes/<int:id>', methods=['DELETE'])
 @jwt_required()
+@cross_origin()
 def delete_recipe(id):
     user_id = get_jwt_identity()
     recipe = Recipe.query.filter_by(id=id, user_id=user_id).first()
-    
+
     if not recipe:
         return jsonify({"message": "Recipe not found"}), 404
-        
+
     db.session.delete(recipe)
     db.session.commit()
     return jsonify({"message": "Recipe deleted"}), 200
 
+# ================= ERROR HANDLERS =================
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"message": "Not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({"message": "Internal server error"}), 500
+
+# ================= RUN =================
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # Create tables if they don't exist
+        db.create_all()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))

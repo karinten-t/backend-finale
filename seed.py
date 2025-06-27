@@ -1,27 +1,26 @@
 from faker import Faker
-from config import create_app, db
+from app import app, db
 from models import User, Recipe
 from random import choice
 
-
 fake = Faker()
-app = create_app()
 
 with app.app_context():
     db.create_all()
-    print(" Seeding typshii...")
+    print("Seeding typshii...")
+
     Recipe.query.delete()
     User.query.delete()
-    print(" Clearing old data...")
+    print("Cleared old data.")
 
-    print(" Creating 15 users...")
+    print("Creating 15 users...")
     users = []
     for _ in range(15):
         user = User(
             username=fake.unique.user_name(),
             email=fake.unique.email()
         )
-        user.password_hash = "password123"  
+        user.password_hash = "password123"
         db.session.add(user)
         users.append(user)
 
@@ -41,6 +40,4 @@ with app.app_context():
         db.session.add(recipe)
 
     db.session.commit()
-    print(" Done seeding 15 users and 15 recipes!")
-
-    
+    print("✅ Done seeding 15 users and 15 recipes!")
