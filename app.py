@@ -6,38 +6,35 @@ from flask_jwt_extended import (
 from sqlalchemy.exc import IntegrityError
 from config import db
 from models import User, Recipe
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from datetime import timedelta
 import os
 
 app = Flask(__name__)
 
-from flask_cors import CORS
+# ✅ Proper global CORS configuration
+CORS(app,
+     origins=["https://frontend-testfinal.onrender.com"],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-CORS(app, resources={r"/*": {"origins": [
-    "http://localhost:3000",
-    "https://frontend-testfinal.onrender.com"
-]}}, supports_credentials=True)
-
-
-# Configs
+# ================== CONFIG ==================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'super-secret-key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-app.config['JWT_TOKEN_LOCATION'] = ['headers']         # ✅ add this
-app.config['JWT_COOKIE_CSRF_PROTECT'] = False          # ✅ add this if NOT using cookies
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 app.secret_key = 'shhh-very-secret'
 
-
-# Init
+# ================== INIT ==================
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
 # ================= AUTH ROUTES =================
 @app.route('/login', methods=['POST'])
-@cross_origin()
 def login():
     data = request.get_json()
     if not data or 'email' not in data or 'password' not in data:
@@ -53,7 +50,6 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 @app.route('/register', methods=['POST'])
-@cross_origin()
 def register():
     data = request.get_json()
     if not data or 'username' not in data or 'email' not in data or 'password' not in data:
@@ -78,7 +74,6 @@ def register():
 # ================= PROFILE ROUTES =================
 @app.route('/me', methods=['GET'])
 @jwt_required()
-@cross_origin()
 def get_profile():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
@@ -88,7 +83,6 @@ def get_profile():
 
 @app.route('/me', methods=['PUT'])
 @jwt_required()
-@cross_origin()
 def update_profile():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
@@ -114,7 +108,6 @@ def update_profile():
 # ================= RECIPE ROUTES =================
 @app.route('/recipes', methods=['GET'])
 @jwt_required()
-@cross_origin()
 def get_all_recipes():
     user_id = get_jwt_identity()
     recipes = Recipe.query.filter_by(user_id=user_id).all()
@@ -122,7 +115,6 @@ def get_all_recipes():
 
 @app.route('/recipes', methods=['POST'])
 @jwt_required()
-@cross_origin()
 def create_recipe():
     user_id = get_jwt_identity()
     data = request.get_json()
@@ -145,7 +137,6 @@ def create_recipe():
 
 @app.route('/recipes/<int:id>', methods=['DELETE'])
 @jwt_required()
-@cross_origin()
 def delete_recipe(id):
     user_id = get_jwt_identity()
     recipe = Recipe.query.filter_by(id=id, user_id=user_id).first()
